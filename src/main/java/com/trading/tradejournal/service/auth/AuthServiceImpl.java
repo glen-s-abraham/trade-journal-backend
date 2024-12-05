@@ -15,12 +15,9 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trading.tradejournal.config.KeycloakProperties;
 import com.trading.tradejournal.exception.auth.AuthServiceException;
-
-import java.util.Map;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -29,13 +26,10 @@ public class AuthServiceImpl implements AuthService {
 
     private final KeycloakProperties keycloakProperties;
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
 
-    public AuthServiceImpl(KeycloakProperties keycloakProperties, RestTemplate restTemplate,
-            ObjectMapper objectMapper) {
+    public AuthServiceImpl(KeycloakProperties keycloakProperties, RestTemplate restTemplate) {
         this.keycloakProperties = keycloakProperties;
         this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Override
