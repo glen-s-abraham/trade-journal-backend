@@ -1,4 +1,4 @@
-package com.trading.tradejournal.dto.stocks;
+package com.trading.tradejournal.dto.stock;
 
 import java.math.BigDecimal;
 

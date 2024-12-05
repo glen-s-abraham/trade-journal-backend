@@ -1,4 +1,4 @@
-package com.trading.tradejournal.service;
+package com.trading.tradejournal.service.stock;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -12,7 +12,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trading.tradejournal.config.AlphaVantageProperties;
-import com.trading.tradejournal.exception.StockServiceException;
+import com.trading.tradejournal.exception.stock.StockServiceException;
 
 @Service
 @Qualifier(value = "AlphaVantage")

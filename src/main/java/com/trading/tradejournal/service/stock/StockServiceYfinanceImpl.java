@@ -1,4 +1,4 @@
-package com.trading.tradejournal.service;
+package com.trading.tradejournal.service.stock;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -7,8 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.trading.tradejournal.exception.StockFetchException;
-import com.trading.tradejournal.exception.StockServiceException;
+import com.trading.tradejournal.exception.stock.StockFetchException;
+import com.trading.tradejournal.exception.stock.StockServiceException;
 
 import yahoofinance.Stock;
 import yahoofinance.YahooFinance;

@@ -1,4 +1,4 @@
-package com.trading.tradejournal.exception;
+package com.trading.tradejournal.exception.stock;
 
 public class StockFetchException extends RuntimeException {
     public StockFetchException(String message, Throwable cause) {

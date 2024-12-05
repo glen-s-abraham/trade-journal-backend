@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.trading.tradejournal.dto.stocks.StockPrice;
-import com.trading.tradejournal.exception.StockServiceException;
-import com.trading.tradejournal.service.StockService;
+import com.trading.tradejournal.dto.stock.StockPrice;
+import com.trading.tradejournal.exception.stock.StockServiceException;
+import com.trading.tradejournal.service.stock.StockService;
 
 @RestController
 @RequestMapping("/stock")
@@ -32,7 +32,6 @@ public class StockController {
     @GetMapping("/price")
     public ResponseEntity<StockPrice> getStockPrice(@RequestParam String symbol) {
         try {
-            logger.info("Fetching stock price for symbol: {}", symbol);
             BigDecimal price = stockService.fetchStockPrice(symbol);
             StockPrice stockPrice = new StockPrice(symbol, price);
             return ResponseEntity.ok(stockPrice);

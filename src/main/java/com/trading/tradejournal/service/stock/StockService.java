@@ -1,4 +1,4 @@
-package com.trading.tradejournal.service;
+package com.trading.tradejournal.service.stock;
 
 import java.math.BigDecimal;
 
