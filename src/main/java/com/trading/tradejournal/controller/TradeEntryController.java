@@ -2,14 +2,21 @@ package com.trading.tradejournal.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
+import com.trading.tradejournal.dto.profitLoss.ProfitLossModificationDto;
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
 import com.trading.tradejournal.exception.auth.UnauthorizedException;
+import com.trading.tradejournal.exception.profitLoss.ProfitLossServiceException;
+import com.trading.tradejournal.exception.trade.TradeEntryNotFoundException;
+import com.trading.tradejournal.model.TradeType;
 import com.trading.tradejournal.service.auth.AuthService;
+import com.trading.tradejournal.service.profitLoss.ProfitAndLossService;
 import com.trading.tradejournal.service.trade.TradeEntryService;
 
 import java.util.List;
+import java.util.Map;
 
+import org.apache.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,10 +31,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class TradeEntryController {
 
     private final TradeEntryService tradeEntryService;
+    private final ProfitAndLossService profitAndLossService;
     private final AuthService authService;
 
-    public TradeEntryController(TradeEntryService tradeEntryService, AuthService authService) {
+    public TradeEntryController(TradeEntryService tradeEntryService, ProfitAndLossService profitAndLossService,
+            AuthService authService) {
         this.tradeEntryService = tradeEntryService;
+        this.profitAndLossService = profitAndLossService;
         this.authService = authService;
     }
 
@@ -47,14 +57,32 @@ public class TradeEntryController {
      * @return The created trade entry DTO.
      */
     @PostMapping("/")
-    public ResponseEntity<TradeEntryDto> postMethodName(@RequestBody TradeEntryModificationDto tradeEntry) {
+    public ResponseEntity<?> createTradeEntry(@RequestBody TradeEntryModificationDto tradeEntry) {
+        TradeEntryDto tradeEntryDto = null;
         try {
             String userId = getAuthenticatedUserId();
             TradeEntryModificationDto modifiedTradeEntry = tradeEntry.withUserId(userId);
-            TradeEntryDto tradeEntryDto = tradeEntryService.createTradeEntry(modifiedTradeEntry);
+            tradeEntryDto = tradeEntryService.createTradeEntry(modifiedTradeEntry);
+            if (tradeEntryDto.tradeType() == TradeType.SELL) {
+                //todo average proce calculation function to be added
+                ProfitLossModificationDto profitLossModificationDto = new ProfitLossModificationDto(userId,
+                        tradeEntryDto.stockSymbol(), tradeEntryDto.tradeDate(), tradeEntryDto.price(),
+                        tradeEntryDto.quantity(), 0d);
+                profitAndLossService.createProfitLoss(profitLossModificationDto, tradeEntryDto);
+            }
             return ResponseEntity.ok(tradeEntryDto);
+        } catch (ProfitLossServiceException pe) {
+            // Rollback the trade entry if profit/loss creation fails
+            if (tradeEntryDto != null && tradeEntryDto.id() != null) {
+                tradeEntryService.deleteTradeEntryById(tradeEntryDto.id());
+            }
+            return ResponseEntity.status(HttpStatus.SC_BAD_REQUEST)
+                    .body(Map.of("error", "Failed to create profit/loss", "details", pe.getMessage()));
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
+            // Log and return a generic error response
+            return ResponseEntity.status(HttpStatus.SC_BAD_REQUEST)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
         }
 
     }
@@ -65,13 +93,14 @@ public class TradeEntryController {
      * @return List of trade entry DTOs.
      */
     @GetMapping
-    public ResponseEntity<List<TradeEntryDto>> fetchAllTrades() {
+    public ResponseEntity<?> fetchAllTrades() {
         try {
             String userId = getAuthenticatedUserId();
             List<TradeEntryDto> tradeEntries = tradeEntryService.fetchTradeEntriesByUserId(userId);
             return ResponseEntity.ok(tradeEntries);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
         }
     }
 
@@ -82,13 +111,19 @@ public class TradeEntryController {
      * @return The trade entry DTO if found, or 404 status if not found.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<TradeEntryDto> fetchTradeById(@PathVariable Long id) {
+    public ResponseEntity<?> fetchTradeById(@PathVariable Long id) {
         try {
             String userId = getAuthenticatedUserId();
             TradeEntryDto tradeEntry = tradeEntryService.fetchTradeEntryByIdAndUserId(id, userId);
             return ResponseEntity.ok(tradeEntry);
+        } catch (TradeEntryNotFoundException e) {
+            // Handle trade not found exception
+            return ResponseEntity.status(HttpStatus.SC_NOT_FOUND)
+                    .body(Map.of("error", "Trade entry not found", "details", e.getMessage()));
+
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
         }
     }
 
@@ -100,14 +135,20 @@ public class TradeEntryController {
      * @return The updated trade entry DTO.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<TradeEntryDto> updateTrade(@PathVariable Long id,
+    public ResponseEntity<?> updateTrade(@PathVariable Long id,
             @RequestBody TradeEntryModificationDto tradeEntry) {
         try {
             String userId = getAuthenticatedUserId();
             TradeEntryDto updatedTrade = tradeEntryService.updateTradeEntryForUser(id, userId, tradeEntry);
             return ResponseEntity.ok(updatedTrade);
+        } catch (TradeEntryNotFoundException e) {
+            // Handle trade not found exception
+            return ResponseEntity.status(HttpStatus.SC_NOT_FOUND)
+                    .body(Map.of("error", "Trade entry not found", "details", e.getMessage()));
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
         }
     }
 
@@ -118,13 +159,19 @@ public class TradeEntryController {
      * @return Response entity with appropriate status.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTrade(@PathVariable Long id) {
+    public ResponseEntity<?> deleteTrade(@PathVariable Long id) {
         try {
             String userId = getAuthenticatedUserId();
             tradeEntryService.deleteTradeEntryByIdForUser(id, userId);
             return ResponseEntity.noContent().build();
+        } catch (TradeEntryNotFoundException e) {
+            // Handle trade not found exception
+            return ResponseEntity.status(HttpStatus.SC_NOT_FOUND)
+                    .body(Map.of("error", "Trade entry not found", "details", e.getMessage()));
+
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
         }
     }
 

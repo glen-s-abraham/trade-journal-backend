@@ -74,4 +74,5 @@ public class TradeEntry extends BaseEntity {
     public void setTradeDate(LocalDate tradeDate) {
         this.tradeDate = tradeDate;
     }
+
 }
