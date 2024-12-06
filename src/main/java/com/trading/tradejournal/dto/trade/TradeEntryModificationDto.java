@@ -10,4 +10,7 @@ public record TradeEntryModificationDto(String userId,
         Integer quantity,
         Double price,
         LocalDate tradeDate) {
+                public TradeEntryModificationDto withUserId(String userId) {
+                        return new TradeEntryModificationDto(userId, stockSymbol, tradeType, quantity, price, tradeDate);
+                }
 }

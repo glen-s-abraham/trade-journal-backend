@@ -1,6 +1,7 @@
 package com.trading.tradejournal.dto.trade;
 
 import java.time.LocalDate;
+
 import com.trading.tradejournal.model.TradeType;
 
 public record TradeEntryDto(

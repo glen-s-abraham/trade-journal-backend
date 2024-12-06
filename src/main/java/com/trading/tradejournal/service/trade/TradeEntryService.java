@@ -10,10 +10,18 @@ public interface TradeEntryService {
 
     List<TradeEntryDto> fetchTradeEntries();
 
+    List<TradeEntryDto> fetchTradeEntriesByUserId(String userId);
+
     TradeEntryDto fetchTradeEntryById(Long id);
+
+    TradeEntryDto fetchTradeEntryByIdAndUserId(Long id, String userId);
 
     TradeEntryDto updateTradeEntry(Long id, TradeEntryModificationDto data);
 
+    TradeEntryDto updateTradeEntryForUser(Long id, String userId, TradeEntryModificationDto data);
+
     void deleteTradeEntryById(Long id);
+
+    void deleteTradeEntryByIdForUser(Long id, String UserId);
 
 }

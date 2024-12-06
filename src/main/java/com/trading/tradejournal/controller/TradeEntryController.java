@@ -4,6 +4,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
+import com.trading.tradejournal.exception.auth.UnauthorizedException;
+import com.trading.tradejournal.service.auth.AuthService;
 import com.trading.tradejournal.service.trade.TradeEntryService;
 
 import java.util.List;
@@ -22,9 +24,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class TradeEntryController {
 
     private final TradeEntryService tradeEntryService;
+    private final AuthService authService;
 
-    public TradeEntryController(TradeEntryService tradeEntryService) {
+    public TradeEntryController(TradeEntryService tradeEntryService, AuthService authService) {
         this.tradeEntryService = tradeEntryService;
+        this.authService = authService;
+    }
+
+    private String getAuthenticatedUserId() {
+        String userId = authService.getUserId();
+        if (userId == null) {
+            throw new UnauthorizedException("User is not authenticated");
+        }
+        return userId;
     }
 
     /**
@@ -37,7 +49,9 @@ public class TradeEntryController {
     @PostMapping("/")
     public ResponseEntity<TradeEntryDto> postMethodName(@RequestBody TradeEntryModificationDto tradeEntry) {
         try {
-            TradeEntryDto tradeEntryDto = tradeEntryService.createTradeEntry(tradeEntry);
+            String userId = getAuthenticatedUserId();
+            TradeEntryModificationDto modifiedTradeEntry = tradeEntry.withUserId(userId);
+            TradeEntryDto tradeEntryDto = tradeEntryService.createTradeEntry(modifiedTradeEntry);
             return ResponseEntity.ok(tradeEntryDto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
@@ -53,7 +67,8 @@ public class TradeEntryController {
     @GetMapping
     public ResponseEntity<List<TradeEntryDto>> fetchAllTrades() {
         try {
-            List<TradeEntryDto> tradeEntries = tradeEntryService.fetchTradeEntries();
+            String userId = getAuthenticatedUserId();
+            List<TradeEntryDto> tradeEntries = tradeEntryService.fetchTradeEntriesByUserId(userId);
             return ResponseEntity.ok(tradeEntries);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
@@ -69,7 +84,8 @@ public class TradeEntryController {
     @GetMapping("/{id}")
     public ResponseEntity<TradeEntryDto> fetchTradeById(@PathVariable Long id) {
         try {
-            TradeEntryDto tradeEntry = tradeEntryService.fetchTradeEntryById(id);
+            String userId = getAuthenticatedUserId();
+            TradeEntryDto tradeEntry = tradeEntryService.fetchTradeEntryByIdAndUserId(id, userId);
             return ResponseEntity.ok(tradeEntry);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
@@ -87,7 +103,8 @@ public class TradeEntryController {
     public ResponseEntity<TradeEntryDto> updateTrade(@PathVariable Long id,
             @RequestBody TradeEntryModificationDto tradeEntry) {
         try {
-            TradeEntryDto updatedTrade = tradeEntryService.updateTradeEntry(id, tradeEntry);
+            String userId = getAuthenticatedUserId();
+            TradeEntryDto updatedTrade = tradeEntryService.updateTradeEntryForUser(id, userId, tradeEntry);
             return ResponseEntity.ok(updatedTrade);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
@@ -103,7 +120,8 @@ public class TradeEntryController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTrade(@PathVariable Long id) {
         try {
-            tradeEntryService.deleteTradeEntryById(id);
+            String userId = getAuthenticatedUserId();
+            tradeEntryService.deleteTradeEntryByIdForUser(id, userId);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
