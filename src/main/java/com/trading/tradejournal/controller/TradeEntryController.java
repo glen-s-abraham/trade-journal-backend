@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.trading.tradejournal.dto.profitLoss.ProfitLossModificationDto;
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
+import com.trading.tradejournal.dto.trade.TradeEntryNetDto;
 import com.trading.tradejournal.exception.auth.UnauthorizedException;
 import com.trading.tradejournal.exception.profitLoss.ProfitLossServiceException;
 import com.trading.tradejournal.exception.trade.TradeEntryNotFoundException;
@@ -97,6 +98,23 @@ public class TradeEntryController {
         try {
             String userId = getAuthenticatedUserId();
             List<TradeEntryDto> tradeEntries = tradeEntryService.fetchTradeEntriesByUserId(userId);
+            return ResponseEntity.ok(tradeEntries);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred", "details", e.getMessage()));
+        }
+    }
+
+    /**
+     * Fetch Net positions.
+     *
+     * @return List of net position DTOs.
+     */
+    @GetMapping("/net")
+    public ResponseEntity<?> fetchNetPositions() {
+        try {
+            String userId = getAuthenticatedUserId();
+            List<TradeEntryNetDto> tradeEntries = tradeEntryService.fetchNetPositions(userId);
             return ResponseEntity.ok(tradeEntries);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR)

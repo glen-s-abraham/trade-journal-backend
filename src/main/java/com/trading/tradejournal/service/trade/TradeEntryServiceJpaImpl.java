@@ -1,6 +1,7 @@
 package com.trading.tradejournal.service.trade;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -9,9 +10,11 @@ import org.springframework.stereotype.Service;
 
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
+import com.trading.tradejournal.dto.trade.TradeEntryNetDto;
 import com.trading.tradejournal.exception.trade.TradeEntryNotFoundException;
 import com.trading.tradejournal.exception.trade.TradeEntryServiceException;
 import com.trading.tradejournal.model.TradeEntry;
+import com.trading.tradejournal.model.TradeType;
 import com.trading.tradejournal.repository.TradeEntryRepository;
 import com.trading.tradejournal.service.stock.StockServiceYfinanceImpl;
 
@@ -36,6 +39,17 @@ public class TradeEntryServiceJpaImpl implements TradeEntryService {
     @Transactional
     public TradeEntryDto createTradeEntry(TradeEntryModificationDto data) {
         try {
+            if (data.tradeType() == TradeType.SELL) {
+                TradeEntryNetDto netPosition = tradeEntryRepository
+                        .calculateNetQuantityAndAveragePriceForSymbol(data.userId(), data.stockSymbol()).orElse(null);
+                if (netPosition == null || netPosition.getNetQuantity() < data.quantity()) {
+                    throw new TradeEntryServiceException(
+                            "Insufficient quantity of " + data.stockSymbol() + " available to sell. Requested: "
+                                    + data.quantity() + ", Available: "
+                                    + (netPosition != null ? netPosition.getNetQuantity() : 0));
+                }
+            }
+
             TradeEntry tradeEntry = TradeEntryMapper.toEntity(data);
             tradeEntry = tradeEntryRepository.save(tradeEntry);
             return TradeEntryMapper.toDto(tradeEntry);
@@ -55,6 +69,17 @@ public class TradeEntryServiceJpaImpl implements TradeEntryService {
         } catch (Exception e) {
             logger.error("Error creating trade entry", e);
             throw new TradeEntryServiceException("Error creating trade entry", e);
+        }
+    }
+
+    @Override
+    public List<TradeEntryNetDto> fetchNetPositions(String userId) {
+        try {
+            List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId);
+            return netPositions;
+        } catch (Exception e) {
+            logger.error("Error fetching net positions", e);
+            throw new TradeEntryServiceException("Error fetching net positions", e);
         }
     }
 
