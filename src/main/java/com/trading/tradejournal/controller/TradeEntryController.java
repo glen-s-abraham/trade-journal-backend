@@ -8,6 +8,7 @@ import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
 import com.trading.tradejournal.dto.trade.TradeEntryNetDto;
 import com.trading.tradejournal.exception.auth.UnauthorizedException;
 import com.trading.tradejournal.exception.profitLoss.ProfitLossServiceException;
+import com.trading.tradejournal.exception.trade.InSufficientTradeQuantityException;
 import com.trading.tradejournal.exception.trade.TradeEntryNotFoundException;
 import com.trading.tradejournal.model.TradeType;
 import com.trading.tradejournal.service.auth.AuthService;
@@ -65,13 +66,16 @@ public class TradeEntryController {
             TradeEntryModificationDto modifiedTradeEntry = tradeEntry.withUserId(userId);
             tradeEntryDto = tradeEntryService.createTradeEntry(modifiedTradeEntry);
             if (tradeEntryDto.tradeType() == TradeType.SELL) {
-                //todo average proce calculation function to be added
+                // todo average proce calculation function to be added
                 ProfitLossModificationDto profitLossModificationDto = new ProfitLossModificationDto(userId,
                         tradeEntryDto.stockSymbol(), tradeEntryDto.tradeDate(), tradeEntryDto.price(),
                         tradeEntryDto.quantity(), 0d);
                 profitAndLossService.createProfitLoss(profitLossModificationDto, tradeEntryDto);
             }
             return ResponseEntity.ok(tradeEntryDto);
+        } catch (InSufficientTradeQuantityException ex) {
+            return ResponseEntity.status(HttpStatus.SC_BAD_REQUEST)
+                    .body(Map.of("error", "Failed to create trade entry", "details", ex.getMessage()));
         } catch (ProfitLossServiceException pe) {
             // Rollback the trade entry if profit/loss creation fails
             if (tradeEntryDto != null && tradeEntryDto.id() != null) {

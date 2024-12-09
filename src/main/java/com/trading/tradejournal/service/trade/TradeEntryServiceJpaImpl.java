@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
 import com.trading.tradejournal.dto.trade.TradeEntryNetDto;
+import com.trading.tradejournal.exception.trade.InSufficientTradeQuantityException;
 import com.trading.tradejournal.exception.trade.TradeEntryNotFoundException;
 import com.trading.tradejournal.exception.trade.TradeEntryServiceException;
 import com.trading.tradejournal.model.TradeEntry;
@@ -43,7 +44,7 @@ public class TradeEntryServiceJpaImpl implements TradeEntryService {
                 TradeEntryNetDto netPosition = tradeEntryRepository
                         .calculateNetQuantityAndAveragePriceForSymbol(data.userId(), data.stockSymbol()).orElse(null);
                 if (netPosition == null || netPosition.getNetQuantity() < data.quantity()) {
-                    throw new TradeEntryServiceException(
+                    throw new InSufficientTradeQuantityException(
                             "Insufficient quantity of " + data.stockSymbol() + " available to sell. Requested: "
                                     + data.quantity() + ", Available: "
                                     + (netPosition != null ? netPosition.getNetQuantity() : 0));
@@ -53,6 +54,9 @@ public class TradeEntryServiceJpaImpl implements TradeEntryService {
             TradeEntry tradeEntry = TradeEntryMapper.toEntity(data);
             tradeEntry = tradeEntryRepository.save(tradeEntry);
             return TradeEntryMapper.toDto(tradeEntry);
+        } catch (InSufficientTradeQuantityException e) {
+            logger.error("Error creating trade entry", e);
+            throw new TradeEntryServiceException("Error creating trade entry. Insufficient quantity.", e);
         } catch (Exception e) {
             logger.error("Error creating trade entry", e);
             throw new TradeEntryServiceException("Error creating trade entry", e);
