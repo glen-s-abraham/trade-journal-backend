@@ -1,9 +1,11 @@
 package com.trading.tradejournal.service.profitLoss;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.bouncycastle.jcajce.provider.asymmetric.dsa.DSASigner.noneDSA;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.config.Configuration.AccessLevel;
 import org.slf4j.Logger;
@@ -82,6 +84,28 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
     }
 
     @Override
+    public List<ProfitLossReport> fetchcurrentProfitAndLoss(String userId, LocalDate startDate, LocalDate endDate) {
+        try {
+            List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId,
+                    startDate, endDate);
+            List<ProfitLossReport> profitLossStatus = netPositions.stream().map(p -> {
+                Double currentPrice;
+                try {
+                    currentPrice = stockService.fetchStockPrice(p.getStockSymbol()).doubleValue();
+                } catch (Exception e) {
+                    currentPrice = 0d;
+                    logger.error("Failed to fetch stock price for symbol: {}", p.getStockSymbol(), e);
+                }
+                return new ProfitLossReport(p.getStockSymbol(), p.getAveragePrice(), p.getNetQuantity(),
+                        currentPrice);
+            }).collect(Collectors.toList());
+            return profitLossStatus;
+        } catch (Exception e) {
+            throw new ProfitLossServiceException("Error fetching current profit and loss");
+        }
+    }
+
+    @Override
     public TotalProfitAndLoss fetchTotalProfitAndLoss(String userId) {
         try {
             // Fetch current profit and loss reports
@@ -98,7 +122,7 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
                     .sum();
 
             // Return TotalProfitAndLoss object
-            return new TotalProfitAndLoss(totalInvested, totalMarketValue - totalInvested);
+            return new TotalProfitAndLoss(totalInvested, totalMarketValue, totalMarketValue - totalInvested);
 
         } catch (Exception e) {
             logger.error("Error fetching total profit and loss for user: {}", userId, e);
