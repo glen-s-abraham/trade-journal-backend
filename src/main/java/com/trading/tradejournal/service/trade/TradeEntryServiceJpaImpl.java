@@ -1,5 +1,6 @@
 package com.trading.tradejournal.service.trade;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -91,6 +92,20 @@ public class TradeEntryServiceJpaImpl implements TradeEntryService {
     public List<TradeEntryDto> fetchTradeEntriesByUserId(String userId) {
         try {
             List<TradeEntry> tradeEntries = tradeEntryRepository.findByUserId(userId);
+            List<TradeEntryDto> tradeEntryDtos = tradeEntries.stream().map(TradeEntryMapper::toDto)
+                    .collect(Collectors.toList());
+            return tradeEntryDtos;
+        } catch (Exception e) {
+            logger.error("Error creating trade entry", e);
+            throw new TradeEntryServiceException("Error creating trade entry", e);
+        }
+    }
+
+    @Override
+    public List<TradeEntryDto> fetchTradeEntriesByUserId(String userId, LocalDate starDate, LocalDate endDate) {
+        try {
+            List<TradeEntry> tradeEntries = tradeEntryRepository.findByUserIdAndTradeDateBetween(userId, starDate,
+                    endDate);
             List<TradeEntryDto> tradeEntryDtos = tradeEntries.stream().map(TradeEntryMapper::toDto)
                     .collect(Collectors.toList());
             return tradeEntryDtos;

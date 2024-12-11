@@ -1,5 +1,6 @@
 package com.trading.tradejournal.service.trade;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.trading.tradejournal.dto.trade.TradeEntryModificationDto;
@@ -12,6 +13,8 @@ public interface TradeEntryService {
     List<TradeEntryDto> fetchTradeEntries();
 
     List<TradeEntryDto> fetchTradeEntriesByUserId(String userId);
+
+    List<TradeEntryDto> fetchTradeEntriesByUserId(String userId, LocalDate starDate, LocalDate endDate);
 
     TradeEntryDto fetchTradeEntryById(Long id);
 
