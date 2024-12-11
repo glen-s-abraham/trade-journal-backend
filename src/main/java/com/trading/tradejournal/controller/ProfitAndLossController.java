@@ -37,7 +37,7 @@ public class ProfitAndLossController {
             List<ProfitLossReport> report;
             if (startDate != null && endDate != null) {
                 report = profitAndLossService.fetchcurrentProfitAndLoss(userId, startDate, endDate);
-            }else{
+            } else {
                 report = profitAndLossService.fetchcurrentProfitAndLoss(userId);
             }
             return ResponseEntity.ok(report);
@@ -48,10 +48,17 @@ public class ProfitAndLossController {
     }
 
     @GetMapping("/cumulative")
-    public ResponseEntity<?> getTotoalProfitAndLoss() {
+    public ResponseEntity<?> getTotoalProfitAndLoss(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
             String userId = authService.getUserId();
-            TotalProfitAndLoss totalProfitAndLoss = profitAndLossService.fetchTotalProfitAndLoss(userId);
+            TotalProfitAndLoss totalProfitAndLoss;
+            if (startDate != null && endDate != null) {
+                totalProfitAndLoss = profitAndLossService.fetchTotalProfitAndLoss(userId, startDate, endDate);
+            } else {
+                totalProfitAndLoss = profitAndLossService.fetchTotalProfitAndLoss(userId);
+            }
             return ResponseEntity.ok(totalProfitAndLoss);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error fetching profit and loss report");

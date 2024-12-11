@@ -19,4 +19,6 @@ public interface ProfitAndLossService {
     List<ProfitLossReport> fetchcurrentProfitAndLoss(String userId, LocalDate startDate, LocalDate endDate);
 
     TotalProfitAndLoss fetchTotalProfitAndLoss(String userId);
+
+    TotalProfitAndLoss fetchTotalProfitAndLoss(String userId,LocalDate starDate,LocalDate endDate);
 }

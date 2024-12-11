@@ -62,21 +62,25 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         }
     }
 
+    private List<ProfitLossReport> transformNetPositions(List<TradeEntryNetDto> netPositions) {
+        return netPositions.stream().map(p -> {
+            Double currentPrice;
+            try {
+                currentPrice = stockService.fetchStockPrice(p.getStockSymbol()).doubleValue();
+            } catch (Exception e) {
+                currentPrice = 0d;
+                logger.error("Failed to fetch stock price for symbol: {}", p.getStockSymbol(), e);
+            }
+            return new ProfitLossReport(p.getStockSymbol(), p.getAveragePrice(), p.getNetQuantity(),
+                    currentPrice);
+        }).collect(Collectors.toList());
+    }
+
     @Override
     public List<ProfitLossReport> fetchcurrentProfitAndLoss(String userId) {
         try {
             List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId);
-            List<ProfitLossReport> profitLossStatus = netPositions.stream().map(p -> {
-                Double currentPrice;
-                try {
-                    currentPrice = stockService.fetchStockPrice(p.getStockSymbol()).doubleValue();
-                } catch (Exception e) {
-                    currentPrice = 0d;
-                    logger.error("Failed to fetch stock price for symbol: {}", p.getStockSymbol(), e);
-                }
-                return new ProfitLossReport(p.getStockSymbol(), p.getAveragePrice(), p.getNetQuantity(),
-                        currentPrice);
-            }).collect(Collectors.toList());
+            List<ProfitLossReport> profitLossStatus = transformNetPositions(netPositions);
             return profitLossStatus;
         } catch (Exception e) {
             throw new ProfitLossServiceException("Error fetching current profit and loss");
@@ -88,21 +92,26 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         try {
             List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId,
                     startDate, endDate);
-            List<ProfitLossReport> profitLossStatus = netPositions.stream().map(p -> {
-                Double currentPrice;
-                try {
-                    currentPrice = stockService.fetchStockPrice(p.getStockSymbol()).doubleValue();
-                } catch (Exception e) {
-                    currentPrice = 0d;
-                    logger.error("Failed to fetch stock price for symbol: {}", p.getStockSymbol(), e);
-                }
-                return new ProfitLossReport(p.getStockSymbol(), p.getAveragePrice(), p.getNetQuantity(),
-                        currentPrice);
-            }).collect(Collectors.toList());
+            List<ProfitLossReport> profitLossStatus = transformNetPositions(netPositions);
             return profitLossStatus;
         } catch (Exception e) {
             throw new ProfitLossServiceException("Error fetching current profit and loss");
         }
+    }
+
+    private TotalProfitAndLoss transformProfitAndLoss(List<ProfitLossReport> profitLossReport) {
+        // Calculate total invested
+        Double totalInvested = profitLossReport.stream()
+                .mapToDouble(pnl -> pnl.averagePrice() * pnl.netQuantity())
+                .sum();
+
+        // Calculate total current market value
+        Double totalMarketValue = profitLossReport.stream()
+                .mapToDouble(pnl -> pnl.currentMarketPrice() * pnl.netQuantity())
+                .sum();
+
+        // Return TotalProfitAndLoss object
+        return new TotalProfitAndLoss(totalInvested, totalMarketValue, totalMarketValue - totalInvested);
     }
 
     @Override
@@ -110,20 +119,19 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         try {
             // Fetch current profit and loss reports
             List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId);
+            return transformProfitAndLoss(currentProfitAndLoss);
+        } catch (Exception e) {
+            logger.error("Error fetching total profit and loss for user: {}", userId, e);
+            throw new ProfitLossServiceException("Error fetching total profit and loss", e);
+        }
+    }
 
-            // Calculate total invested
-            Double totalInvested = currentProfitAndLoss.stream()
-                    .mapToDouble(pnl -> pnl.averagePrice() * pnl.netQuantity())
-                    .sum();
-
-            // Calculate total current market value
-            Double totalMarketValue = currentProfitAndLoss.stream()
-                    .mapToDouble(pnl -> pnl.currentMarketPrice() * pnl.netQuantity())
-                    .sum();
-
-            // Return TotalProfitAndLoss object
-            return new TotalProfitAndLoss(totalInvested, totalMarketValue, totalMarketValue - totalInvested);
-
+    @Override
+    public TotalProfitAndLoss fetchTotalProfitAndLoss(String userId, LocalDate starDate, LocalDate endDate) {
+        try {
+            // Fetch current profit and loss reports
+            List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId, starDate, endDate);
+            return transformProfitAndLoss(currentProfitAndLoss);
         } catch (Exception e) {
             logger.error("Error fetching total profit and loss for user: {}", userId, e);
             throw new ProfitLossServiceException("Error fetching total profit and loss", e);
