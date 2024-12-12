@@ -63,9 +63,11 @@ public interface TradeEntryRepository extends JpaRepository<TradeEntry, Long> {
                         + ") "
                         + "FROM TradeEntry t "
                         + "WHERE t.userId = :userId "
+                        + "AND t.tradeDate BETWEEN :startDate AND :endDate "
                         + "GROUP BY t.tradeDate "
                         + "ORDER BY t.tradeDate")
-        List<ProfitLossTrendDto> findDailyProfitLoss(@Param("userId") String userId);
+        List<ProfitLossTrendDto> findDailyProfitLoss(@Param("userId") String userId,
+                        @Param("startDate") LocalDate starDate, @Param("endDate") LocalDate endDate);
 
         @Query(value = "SELECT EXTRACT(YEAR FROM t.trade_date) AS year, "
                         + "EXTRACT(WEEK FROM t.trade_date) AS week, "
@@ -73,9 +75,11 @@ public interface TradeEntryRepository extends JpaRepository<TradeEntry, Long> {
                         + "SUM(CASE WHEN t.trade_type = 'BUY' THEN t.quantity * t.price ELSE 0 END) AS net_profit "
                         + "FROM trade_entries t "
                         + "WHERE t.user_id = :userId "
+                        + "AND t.trade_date BETWEEN :startDate AND :endDate "
                         + "GROUP BY EXTRACT(YEAR FROM t.trade_date), EXTRACT(WEEK FROM t.trade_date) "
                         + "ORDER BY year, week", nativeQuery = true)
-        List<Object[]> findWeeklyProfitLoss(@Param("userId") String userId);
+        List<Object[]> findWeeklyProfitLoss(@Param("userId") String userId,
+                        @Param("startDate") LocalDate starDate, @Param("endDate") LocalDate endDate);
 
         @Query(value = "SELECT EXTRACT(YEAR FROM t.trade_date) AS year, "
                         + "EXTRACT(MONTH FROM t.trade_date) AS month, "
@@ -83,8 +87,10 @@ public interface TradeEntryRepository extends JpaRepository<TradeEntry, Long> {
                         + "SUM(CASE WHEN t.trade_type = 'BUY' THEN t.quantity * t.price ELSE 0 END) AS net_profit "
                         + "FROM trade_entries t "
                         + "WHERE t.user_id = :userId "
+                        + "AND t.trade_date BETWEEN :startDate AND :endDate "
                         + "GROUP BY EXTRACT(YEAR FROM t.trade_date), EXTRACT(MONTH FROM t.trade_date) "
                         + "ORDER BY year, month", nativeQuery = true)
-        List<Object[]> findMonthlyProfitLoss(@Param("userId") String userId);
+        List<Object[]> findMonthlyProfitLoss(@Param("userId") String userId,
+                        @Param("startDate") LocalDate starDate, @Param("endDate") LocalDate endDate);
 
 }

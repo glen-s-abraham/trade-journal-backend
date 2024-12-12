@@ -64,25 +64,12 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         }
     }
 
-    private List<ProfitLossReport> transformNetPositions(List<TradeEntryNetDto> netPositions) {
-        return netPositions.stream().map(p -> {
-            Double currentPrice;
-            try {
-                currentPrice = stockService.fetchStockPrice(p.getStockSymbol()).doubleValue();
-            } catch (Exception e) {
-                currentPrice = 0d;
-                logger.error("Failed to fetch stock price for symbol: {}", p.getStockSymbol(), e);
-            }
-            return new ProfitLossReport(p.getStockSymbol(), p.getAveragePrice(), p.getNetQuantity(),
-                    currentPrice);
-        }).collect(Collectors.toList());
-    }
-
     @Override
     public List<ProfitLossReport> fetchcurrentProfitAndLoss(String userId) {
         try {
             List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId);
-            List<ProfitLossReport> profitLossStatus = transformNetPositions(netPositions);
+            List<ProfitLossReport> profitLossStatus = ProfitAndLossTransformUtils.transformNetPositions(netPositions,
+                    stockService);
             return profitLossStatus;
         } catch (Exception e) {
             throw new ProfitLossServiceException("Error fetching current profit and loss");
@@ -94,26 +81,12 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         try {
             List<TradeEntryNetDto> netPositions = tradeEntryRepository.calculateNetQuantityAndAveragePrice(userId,
                     startDate, endDate);
-            List<ProfitLossReport> profitLossStatus = transformNetPositions(netPositions);
+            List<ProfitLossReport> profitLossStatus = ProfitAndLossTransformUtils.transformNetPositions(netPositions,
+                    stockService);
             return profitLossStatus;
         } catch (Exception e) {
             throw new ProfitLossServiceException("Error fetching current profit and loss");
         }
-    }
-
-    private TotalProfitAndLoss transformProfitAndLoss(List<ProfitLossReport> profitLossReport) {
-        // Calculate total invested
-        Double totalInvested = profitLossReport.stream()
-                .mapToDouble(pnl -> pnl.averagePrice() * pnl.netQuantity())
-                .sum();
-
-        // Calculate total current market value
-        Double totalMarketValue = profitLossReport.stream()
-                .mapToDouble(pnl -> pnl.currentMarketPrice() * pnl.netQuantity())
-                .sum();
-
-        // Return TotalProfitAndLoss object
-        return new TotalProfitAndLoss(totalInvested, totalMarketValue, totalMarketValue - totalInvested);
     }
 
     @Override
@@ -121,7 +94,7 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         try {
             // Fetch current profit and loss reports
             List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId);
-            return transformProfitAndLoss(currentProfitAndLoss);
+            return ProfitAndLossTransformUtils.transformProfitAndLoss(currentProfitAndLoss);
         } catch (Exception e) {
             logger.error("Error fetching total profit and loss for user: {}", userId, e);
             throw new ProfitLossServiceException("Error fetching total profit and loss", e);
@@ -133,7 +106,7 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
         try {
             // Fetch current profit and loss reports
             List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId, startDate, endDate);
-            return transformProfitAndLoss(currentProfitAndLoss);
+            return ProfitAndLossTransformUtils.transformProfitAndLoss(currentProfitAndLoss);
         } catch (Exception e) {
             logger.error("Error fetching total profit and loss for user: {}", userId, e);
             throw new ProfitLossServiceException("Error fetching total profit and loss", e);
@@ -148,36 +121,19 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
 
             switch (interval) {
                 case DAILY:
-                    profitAndLossTrend = tradeEntryRepository.findDailyProfitLoss(userId);
+                    profitAndLossTrend = tradeEntryRepository.findDailyProfitLoss(userId, startDate, endDate);
                     break;
 
                 case WEEKLY:
-                    List<Object[]> weeklyResults = tradeEntryRepository.findWeeklyProfitLoss(userId);
-
-                    profitAndLossTrend = weeklyResults.stream()
-                            .map(row -> {
-                                int year = ((Number) row[0]).intValue();
-                                int week = ((Number) row[1]).intValue();
-                                double netProfit = ((Number) row[2]).doubleValue();
-                                LocalDate date = LocalDate.of(year, 1, 1).plusWeeks(week - 1);
-                                return new ProfitLossTrendDto(date, netProfit);
-                            })
-                            .collect(Collectors.toList());
+                    List<Object[]> weeklyResults = tradeEntryRepository.findWeeklyProfitLoss(userId, startDate,
+                            endDate);
+                    profitAndLossTrend = ProfitAndLossTransformUtils.transformWeeklyResults(weeklyResults);
                     break;
 
                 case MONTHLY:
-                    List<Object[]> monthlyResults = tradeEntryRepository.findMonthlyProfitLoss(userId);
-
-                    profitAndLossTrend = monthlyResults.stream()
-                            .map(row -> {
-                                int year = ((Number) row[0]).intValue();
-                                int month = ((Number) row[1]).intValue();
-                                double netProfit = ((Number) row[2]).doubleValue();
-                                // Represent the month by the first day of that month
-                                LocalDate date = LocalDate.of(year, month, 1);
-                                return new ProfitLossTrendDto(date, netProfit);
-                            })
-                            .collect(Collectors.toList());
+                    List<Object[]> monthlyResults = tradeEntryRepository.findMonthlyProfitLoss(userId, startDate,
+                            endDate);
+                    profitAndLossTrend = ProfitAndLossTransformUtils.transformMonthlyResults(monthlyResults);
                     break;
 
                 default:
