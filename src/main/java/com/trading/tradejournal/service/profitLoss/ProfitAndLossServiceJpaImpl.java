@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.trading.tradejournal.dto.profitLoss.ProfitLossDto;
 import com.trading.tradejournal.dto.profitLoss.ProfitLossModificationDto;
 import com.trading.tradejournal.dto.profitLoss.ProfitLossReport;
+import com.trading.tradejournal.dto.profitLoss.ProfitLossTrendDto;
 import com.trading.tradejournal.dto.profitLoss.TotalProfitAndLoss;
 import com.trading.tradejournal.dto.stock.StockPrice;
 import com.trading.tradejournal.dto.trade.TradeEntryDto;
@@ -25,6 +26,7 @@ import com.trading.tradejournal.model.ProfitAndLoss;
 import com.trading.tradejournal.model.TradeEntry;
 import com.trading.tradejournal.repository.ProfitAndLossRepository;
 import com.trading.tradejournal.repository.TradeEntryRepository;
+import com.trading.tradejournal.service.profitLoss.enums.ProfitAndLossInterval;
 import com.trading.tradejournal.service.stock.StockService;
 
 import jakarta.transaction.Transactional;
@@ -127,14 +129,71 @@ public class ProfitAndLossServiceJpaImpl implements ProfitAndLossService {
     }
 
     @Override
-    public TotalProfitAndLoss fetchTotalProfitAndLoss(String userId, LocalDate starDate, LocalDate endDate) {
+    public TotalProfitAndLoss fetchTotalProfitAndLoss(String userId, LocalDate startDate, LocalDate endDate) {
         try {
             // Fetch current profit and loss reports
-            List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId, starDate, endDate);
+            List<ProfitLossReport> currentProfitAndLoss = fetchcurrentProfitAndLoss(userId, startDate, endDate);
             return transformProfitAndLoss(currentProfitAndLoss);
         } catch (Exception e) {
             logger.error("Error fetching total profit and loss for user: {}", userId, e);
             throw new ProfitLossServiceException("Error fetching total profit and loss", e);
+        }
+    }
+
+    @Override
+    public List<ProfitLossTrendDto> getProfitLossTrend(String userId, LocalDate startDate, LocalDate endDate,
+            ProfitAndLossInterval interval) {
+        try {
+            List<ProfitLossTrendDto> profitAndLossTrend;
+
+            switch (interval) {
+                case DAILY:
+                    profitAndLossTrend = tradeEntryRepository.findDailyProfitLoss(userId);
+                    break;
+
+                case WEEKLY:
+                    List<Object[]> weeklyResults = tradeEntryRepository.findWeeklyProfitLoss(userId);
+
+                    profitAndLossTrend = weeklyResults.stream()
+                            .map(row -> {
+                                int year = ((Number) row[0]).intValue();
+                                int week = ((Number) row[1]).intValue();
+                                double netProfit = ((Number) row[2]).doubleValue();
+                                LocalDate date = LocalDate.of(year, 1, 1).plusWeeks(week - 1);
+                                return new ProfitLossTrendDto(date, netProfit);
+                            })
+                            .collect(Collectors.toList());
+                    break;
+
+                case MONTHLY:
+                    List<Object[]> monthlyResults = tradeEntryRepository.findMonthlyProfitLoss(userId);
+
+                    profitAndLossTrend = monthlyResults.stream()
+                            .map(row -> {
+                                int year = ((Number) row[0]).intValue();
+                                int month = ((Number) row[1]).intValue();
+                                double netProfit = ((Number) row[2]).doubleValue();
+                                // Represent the month by the first day of that month
+                                LocalDate date = LocalDate.of(year, month, 1);
+                                return new ProfitLossTrendDto(date, netProfit);
+                            })
+                            .collect(Collectors.toList());
+                    break;
+
+                default:
+                    throw new ProfitLossServiceException("Unknown aggregation type: " + interval);
+            }
+
+            return profitAndLossTrend;
+
+        } catch (ProfitLossServiceException e) {
+            logger.warn("Validation error for profit and loss trend. User: {}, Interval: {}, Start: {}, End: {}",
+                    userId, interval, startDate, endDate, e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Error fetching profit and loss trend for user: {}, Interval: {}, Start: {}, End: {}",
+                    userId, interval, startDate, endDate, e);
+            throw new ProfitLossServiceException("Error fetching profit and loss trend", e);
         }
     }
 

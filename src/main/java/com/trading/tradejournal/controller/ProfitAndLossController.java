@@ -5,9 +5,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.trading.tradejournal.dto.profitLoss.ProfitLossReport;
+import com.trading.tradejournal.dto.profitLoss.ProfitLossTrendDto;
 import com.trading.tradejournal.dto.profitLoss.TotalProfitAndLoss;
 import com.trading.tradejournal.service.auth.AuthService;
 import com.trading.tradejournal.service.profitLoss.ProfitAndLossService;
+import com.trading.tradejournal.service.profitLoss.enums.ProfitAndLossInterval;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -64,6 +66,23 @@ public class ProfitAndLossController {
             return ResponseEntity.badRequest().body("Error fetching profit and loss report");
         }
 
+    }
+
+    @GetMapping("/trend")
+    public ResponseEntity<?> getProfitLossTrend(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam ProfitAndLossInterval interval) {
+        try {
+            String userId = authService.getUserId();
+            List<ProfitLossTrendDto> trend = profitAndLossService.getProfitLossTrend(userId, startDate, endDate,
+                    interval);
+            return ResponseEntity.ok(trend);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error fetching profit and loss trend");
+        }
     }
 
 }
